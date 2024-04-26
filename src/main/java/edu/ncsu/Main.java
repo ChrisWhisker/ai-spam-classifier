@@ -2,7 +2,7 @@ package edu.ncsu;
 
 public class Main {
 	public static void main(String[] args) {
-		NaiveBayesSpamClassifier classifier = new NaiveBayesSpamClassifier();
+		SpamClassifier classifier = new SpamClassifier();
 		classifier.trainClassifier("SMSSpamCollection.arff");
 		classifier.evaluateClassifier();
 

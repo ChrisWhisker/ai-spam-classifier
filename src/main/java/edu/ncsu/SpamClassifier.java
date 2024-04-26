@@ -15,49 +15,49 @@ import weka.filters.unsupervised.attribute.StringToWordVector;
 import java.util.Objects;
 import java.util.Random;
 
-public class NaiveBayesSpamClassifier {
+public class SpamClassifier {
 
-	private Instances nominalDataInstances;
-	private NaiveBayes naiveBayes;
+	private Instances dataSet;
+	private NaiveBayes naiveBayesClassifier;
 
 	public void trainClassifier(String dataFilePath) {
 		try {
 			// Load dataset
 			DataSource source = new DataSource(dataFilePath);
-			Instances data = source.getDataSet();
-			if (data.classIndex() == -1) {
-				data.setClassIndex(data.numAttributes() - 1);
+			Instances rawData = source.getDataSet();
+			if (rawData.classIndex() == -1) {
+				rawData.setClassIndex(rawData.numAttributes() - 1);
 			}
 
 			// Convert string attribute to word vectors
-			StringToWordVector filter = new StringToWordVector();
-			filter.setInputFormat(data);
-			Instances newData = Filter.useFilter(data, filter);
+			StringToWordVector stringToWordVectorFilter = new StringToWordVector();
+			stringToWordVectorFilter.setInputFormat(rawData);
+			Instances dataWithWordVectors = Filter.useFilter(rawData, stringToWordVectorFilter);
 
 			// Convert numeric attributes to nominal
-			NumericToNominal filterNumericToNominal = new NumericToNominal();
-			filterNumericToNominal.setInputFormat(newData);
-			Instances newDataWithNominalAttributes = Filter.useFilter(newData, filterNumericToNominal);
+			NumericToNominal numericToNominalFilter = new NumericToNominal();
+			numericToNominalFilter.setInputFormat(dataWithWordVectors);
+			Instances dataWithNominalAttributes = Filter.useFilter(dataWithWordVectors, numericToNominalFilter);
 
 			// Convert class attribute to nominal
-			StringToNominal filterStringToNominal = new StringToNominal();
-			filterStringToNominal.setAttributeRange("last");
-			filterStringToNominal.setInputFormat(newDataWithNominalAttributes);
-			nominalDataInstances = Filter.useFilter(newDataWithNominalAttributes, filterStringToNominal);
+			StringToNominal stringToNominalFilter = new StringToNominal();
+			stringToNominalFilter.setAttributeRange("last");
+			stringToNominalFilter.setInputFormat(dataWithNominalAttributes);
+			dataSet = Filter.useFilter(dataWithNominalAttributes, stringToNominalFilter);
 
 			// Set class index to the newly converted nominal attribute
-			nominalDataInstances.setClassIndex(nominalDataInstances.numAttributes() - 1);
+			dataSet.setClassIndex(dataSet.numAttributes() - 1);
 
 			// Initialize Naive Bayes classifier
-			naiveBayes = new NaiveBayes();
+			naiveBayesClassifier = new NaiveBayes();
 
 			// Train classifier
-			naiveBayes.buildClassifier(nominalDataInstances);
+			naiveBayesClassifier.buildClassifier(dataSet);
 
 			// Evaluate classifier
-			Evaluation eval = new Evaluation(nominalDataInstances);
-			eval.crossValidateModel(naiveBayes, nominalDataInstances, 10, new Random(1)); // 10-fold cross-validation
-			System.out.println(eval.toSummaryString());
+			Evaluation evaluation = new Evaluation(dataSet);
+			evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
+			System.out.println(evaluation.toSummaryString());
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -67,9 +67,9 @@ public class NaiveBayesSpamClassifier {
 	public void evaluateClassifier() {
 		try {
 			// Evaluate classifier
-			Evaluation eval = new Evaluation(nominalDataInstances);
-			eval.crossValidateModel(naiveBayes, nominalDataInstances, 10, new Random(1)); // 10-fold cross-validation
-			System.out.println(eval.toSummaryString());
+			Evaluation evaluation = new Evaluation(dataSet);
+			evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
+			System.out.println(evaluation.toSummaryString());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -80,8 +80,8 @@ public class NaiveBayesSpamClassifier {
 			System.out.println("Predicting class for message: \"" + textMessage + "\"");
 
 			// Create a new instance
-			Instance instance = new DenseInstance(nominalDataInstances.numAttributes());
-			instance.setDataset(nominalDataInstances);
+			Instance instance = new DenseInstance(dataSet.numAttributes());
+			instance.setDataset(dataSet);
 
 			// Split the given text message into words
 			String[] words = textMessage.split("\\s+");
@@ -90,9 +90,9 @@ public class NaiveBayesSpamClassifier {
 			for (String word : words) {
 				// Find the index of the attribute corresponding to the word
 				Attribute attribute = null;
-				for (int i = 0; i < nominalDataInstances.numAttributes(); i++) {
-					if (nominalDataInstances.attribute(i).name().equalsIgnoreCase(word)) {
-						attribute = nominalDataInstances.attribute(i);
+				for (int i = 0; i < dataSet.numAttributes(); i++) {
+					if (dataSet.attribute(i).name().equalsIgnoreCase(word)) {
+						attribute = dataSet.attribute(i);
 						break;
 					}
 				}
@@ -106,21 +106,21 @@ public class NaiveBayesSpamClassifier {
 			}
 
 			// Create a new Instances object containing only the instance to be tested
-			Instances singleInstanceDataset = new Instances(nominalDataInstances, 0);
-			singleInstanceDataset.add(instance);
+			Instances singleInstanceDataSet = new Instances(dataSet, 0);
+			singleInstanceDataSet.add(instance);
 
 			// Preprocess the single instance using the same filter as the training data
-			StringToWordVector filterInstance = new StringToWordVector();
-			filterInstance.setInputFormat(singleInstanceDataset);
-			Instances preprocessedSingleInstanceDataset = Filter.useFilter(singleInstanceDataset, filterInstance);
+			StringToWordVector instanceFilter = new StringToWordVector();
+			instanceFilter.setInputFormat(singleInstanceDataSet);
+			Instances preprocessedSingleInstanceDataSet = Filter.useFilter(singleInstanceDataSet, instanceFilter);
 
 			// Get the preprocessed instance
-			Instance preprocessedInstance = preprocessedSingleInstanceDataset.get(0);
+			Instance preprocessedInstance = preprocessedSingleInstanceDataSet.get(0);
 
 			// Classify instance
-			double[] predictionDistribution = naiveBayes.distributionForInstance(preprocessedInstance);
-			double pred = naiveBayes.classifyInstance(preprocessedInstance);
-			String prediction = nominalDataInstances.classAttribute().value((int) pred);
+			double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
+			double pred = naiveBayesClassifier.classifyInstance(preprocessedInstance);
+			String prediction = dataSet.classAttribute().value((int) pred);
 			System.out.println("Predicted class: " + (Objects.equals(prediction, "1") ? "spam" : "ham"));
 
 			// Print confidence level for each class
@@ -130,7 +130,4 @@ public class NaiveBayesSpamClassifier {
 			e.printStackTrace();
 		}
 	}
-
-
-
 }
