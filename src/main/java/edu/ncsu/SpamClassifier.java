@@ -17,6 +17,7 @@ import java.util.Random;
 
 public class SpamClassifier {
 
+	// Dataset used for training and testing
 	private Instances dataSet;
 	private NaiveBayes naiveBayesClassifier;
 
@@ -129,6 +130,10 @@ public class SpamClassifier {
 	 * @throws Exception If an error occurs during preprocessing.
 	 */
 	private Instance preprocessInstance(String textMessage) throws Exception {
+		if (dataSet == null) {
+			throw new IllegalStateException("Dataset is not initialized.");
+		}
+
 		// Create a new instance
 		Instance instance = new DenseInstance(dataSet.numAttributes());
 		instance.setDataset(dataSet);
