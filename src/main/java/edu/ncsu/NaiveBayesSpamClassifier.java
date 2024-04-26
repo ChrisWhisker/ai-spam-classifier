@@ -89,11 +89,19 @@ public class NaiveBayesSpamClassifier {
 			// Set attributes for the new instance based on the example text message
 			for (String word : words) {
 				// Find the index of the attribute corresponding to the word
-				Attribute attribute = nominalDataInstances.attribute(word.toLowerCase());
+				Attribute attribute = null;
+				for (int i = 0; i < nominalDataInstances.numAttributes(); i++) {
+					if (nominalDataInstances.attribute(i).name().equalsIgnoreCase(word)) {
+						attribute = nominalDataInstances.attribute(i);
+						break;
+					}
+				}
 				if (attribute != null) {
 					int attributeIndex = attribute.index();
 					// Set the value for the attribute
 					instance.setValue(attributeIndex, 1); // Assuming word occurrence is binary
+				} else {
+					System.out.println("Skipping unknown word: " + word);
 				}
 			}
 
@@ -122,4 +130,7 @@ public class NaiveBayesSpamClassifier {
 			e.printStackTrace();
 		}
 	}
+
+
+
 }
