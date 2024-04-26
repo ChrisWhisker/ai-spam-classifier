@@ -12,7 +12,6 @@ import weka.filters.unsupervised.attribute.NumericToNominal;
 import weka.filters.unsupervised.attribute.StringToNominal;
 import weka.filters.unsupervised.attribute.StringToWordVector;
 
-import java.util.Objects;
 import java.util.Random;
 
 public class SpamClassifier {
@@ -28,25 +27,18 @@ public class SpamClassifier {
 	 * @throws Exception If an error occurs during training.
 	 */
 	public void trainClassifier(String dataFilePath) throws Exception {
-		try {
-			// Load dataset
-			DataSource source = new DataSource(dataFilePath);
-			Instances rawData = source.getDataSet();
-			rawData.setClassIndex(rawData.numAttributes() - 1);
+		// Load dataset
+		DataSource source = new DataSource(dataFilePath);
+		Instances rawData = source.getDataSet();
+		rawData.setClassIndex(rawData.numAttributes() - 1);
 
-			// Preprocess data
-			Instances dataProcessed = preprocessData(rawData);
+		Instances dataProcessed = preprocessData(rawData);
 
-			// Initialize and train Naive Bayes classifier
-			naiveBayesClassifier = new NaiveBayes();
-			naiveBayesClassifier.buildClassifier(dataProcessed);
+		// Initialize and train Naive Bayes classifier
+		naiveBayesClassifier = new NaiveBayes();
+		naiveBayesClassifier.buildClassifier(dataProcessed);
 
-			// Evaluate classifier
-			evaluateClassifier();
-
-		} catch (Exception e) {
-			throw new Exception("Error occurred during training.", e);
-		}
+		evaluateClassifier();
 	}
 
 	/**
@@ -56,7 +48,8 @@ public class SpamClassifier {
 	 */
 	private void evaluateClassifier() throws Exception {
 		Evaluation evaluation = new Evaluation(dataSet);
-		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
+		// 10-fold cross-validation
+		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1));
 		System.out.println(evaluation.toSummaryString());
 	}
 
@@ -98,28 +91,22 @@ public class SpamClassifier {
 	 * @throws Exception If an error occurs during classification.
 	 */
 	public void testModel(String textMessage) throws Exception {
-		try {
-			System.out.println("Predicting class for message: \"" + textMessage + "\"");
+		System.out.println("Predicting class for message: \"" + textMessage + "\"");
 
-			// Create a new instance
-			Instance instance = new DenseInstance(dataSet.numAttributes());
-			instance.setDataset(dataSet);
+		// Create a new instance and process it
+		Instance instance = new DenseInstance(dataSet.numAttributes());
+		instance.setDataset(dataSet);
+		Instance preprocessedInstance = preprocessInstance(textMessage);
 
-			// Process the instance
-			Instance preprocessedInstance = preprocessInstance(textMessage);
+		// Classify instance
+		double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
+		double pred = naiveBayesClassifier.classifyInstance(preprocessedInstance);
+		String prediction = dataSet.classAttribute().value((int) pred);
+		System.out.println("Predicted class: " + (prediction.equals("1") ? "spam" : "ham"));
 
-			// Classify instance
-			double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
-			double pred = naiveBayesClassifier.classifyInstance(preprocessedInstance);
-			String prediction = dataSet.classAttribute().value((int) pred);
-			System.out.println("Predicted class: " + (Objects.equals(prediction, "1") ? "spam" : "ham"));
-
-			// Print confidence level for each class
-			System.out.println("Confidence level for spam: " + String.format("%.2f", predictionDistribution[1] * 100) + "%");
-			System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
-		} catch (Exception e) {
-			throw new Exception("Error occurred during testing.", e);
-		}
+		// Print confidence level for each class
+		System.out.println("Confidence level for spam: " + String.format("%.2f", predictionDistribution[1] * 100) + "%");
+		System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
 	}
 
 	/**
@@ -143,19 +130,10 @@ public class SpamClassifier {
 
 		// Set attributes for the new instance based on the example text message
 		for (String word : words) {
-			// Find the index of the attribute corresponding to the word
-			Attribute attribute = null;
-			for (int i = 0; i < dataSet.numAttributes(); i++) {
-				if (dataSet.attribute(i).name().equalsIgnoreCase(word)) {
-					attribute = dataSet.attribute(i);
-					break;
-				}
-			}
-			// Skip any unknown words
+			Attribute attribute = dataSet.attribute(word);
 			if (attribute != null) {
 				int attributeIndex = attribute.index();
-				// Set the value for the attribute
-				instance.setValue(attributeIndex, 1); // Assuming word occurrence is binary
+				instance.setValue(attributeIndex, 1);
 			}
 		}
 
@@ -171,5 +149,4 @@ public class SpamClassifier {
 		// Get the preprocessed instance
 		return preprocessedSingleInstanceDataSet.get(0);
 	}
-
 }
