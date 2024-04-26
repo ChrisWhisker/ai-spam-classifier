@@ -31,39 +31,17 @@ public class SpamClassifier {
 			// Load dataset
 			DataSource source = new DataSource(dataFilePath);
 			Instances rawData = source.getDataSet();
-			if (rawData.classIndex() == -1) {
-				rawData.setClassIndex(rawData.numAttributes() - 1);
-			}
+			rawData.setClassIndex(rawData.numAttributes() - 1);
 
-			// Convert string attribute to word vectors
-			StringToWordVector stringToWordVectorFilter = new StringToWordVector();
-			stringToWordVectorFilter.setInputFormat(rawData);
-			Instances dataWithWordVectors = Filter.useFilter(rawData, stringToWordVectorFilter);
+			// Preprocess data
+			Instances dataProcessed = preprocessData(rawData);
 
-			// Convert numeric attributes to nominal
-			NumericToNominal numericToNominalFilter = new NumericToNominal();
-			numericToNominalFilter.setInputFormat(dataWithWordVectors);
-			Instances dataWithNominalAttributes = Filter.useFilter(dataWithWordVectors, numericToNominalFilter);
-
-			// Convert class attribute to nominal
-			StringToNominal stringToNominalFilter = new StringToNominal();
-			stringToNominalFilter.setAttributeRange("last");
-			stringToNominalFilter.setInputFormat(dataWithNominalAttributes);
-			dataSet = Filter.useFilter(dataWithNominalAttributes, stringToNominalFilter);
-
-			// Set class index to the newly converted nominal attribute
-			dataSet.setClassIndex(dataSet.numAttributes() - 1);
-
-			// Initialize Naive Bayes classifier
+			// Initialize and train Naive Bayes classifier
 			naiveBayesClassifier = new NaiveBayes();
-
-			// Train classifier
-			naiveBayesClassifier.buildClassifier(dataSet);
+			naiveBayesClassifier.buildClassifier(dataProcessed);
 
 			// Evaluate classifier
-			Evaluation evaluation = new Evaluation(dataSet);
-			evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
-			System.out.println(evaluation.toSummaryString());
+			evaluateClassifier();
 
 		} catch (Exception e) {
 			throw new Exception("Error occurred during training.", e);
@@ -75,15 +53,41 @@ public class SpamClassifier {
 	 *
 	 * @throws Exception If an error occurs during evaluation.
 	 */
-	public void evaluateClassifier() throws Exception {
-		try {
-			// Evaluate classifier
-			Evaluation evaluation = new Evaluation(dataSet);
-			evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
-			System.out.println(evaluation.toSummaryString());
-		} catch (Exception e) {
-			throw new Exception("Error occurred during evaluation.", e);
-		}
+	private void evaluateClassifier() throws Exception {
+		Evaluation evaluation = new Evaluation(dataSet);
+		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
+		System.out.println(evaluation.toSummaryString());
+	}
+
+	/**
+	 * Preprocesses the data by converting string attributes to word vectors
+	 * and numeric attributes to nominal.
+	 *
+	 * @param data The dataset to preprocess.
+	 * @return The preprocessed dataset.
+	 * @throws Exception If an error occurs during preprocessing.
+	 */
+	private Instances preprocessData(Instances data) throws Exception {
+		// Convert string attribute to word vectors
+		StringToWordVector stringToWordVectorFilter = new StringToWordVector();
+		stringToWordVectorFilter.setInputFormat(data);
+		Instances dataWithWordVectors = Filter.useFilter(data, stringToWordVectorFilter);
+
+		// Convert numeric attributes to nominal
+		NumericToNominal numericToNominalFilter = new NumericToNominal();
+		numericToNominalFilter.setInputFormat(dataWithWordVectors);
+		Instances dataWithNominalAttributes = Filter.useFilter(dataWithWordVectors, numericToNominalFilter);
+
+		// Convert class attribute to nominal
+		StringToNominal stringToNominalFilter = new StringToNominal();
+		stringToNominalFilter.setAttributeRange("last");
+		stringToNominalFilter.setInputFormat(dataWithNominalAttributes);
+		dataSet = Filter.useFilter(dataWithNominalAttributes, stringToNominalFilter);
+
+		// Set class index to the newly converted nominal attribute
+		dataSet.setClassIndex(dataSet.numAttributes() - 1);
+
+		return dataSet;
 	}
 
 	/**
@@ -100,38 +104,8 @@ public class SpamClassifier {
 			Instance instance = new DenseInstance(dataSet.numAttributes());
 			instance.setDataset(dataSet);
 
-			// Split the given text message into words
-			String[] words = textMessage.split("\\s+");
-
-			// Set attributes for the new instance based on the example text message
-			for (String word : words) {
-				// Find the index of the attribute corresponding to the word
-				Attribute attribute = null;
-				for (int i = 0; i < dataSet.numAttributes(); i++) {
-					if (dataSet.attribute(i).name().equalsIgnoreCase(word)) {
-						attribute = dataSet.attribute(i);
-						break;
-					}
-				}
-				// Skip any unknown words
-				if (attribute != null) {
-					int attributeIndex = attribute.index();
-					// Set the value for the attribute
-					instance.setValue(attributeIndex, 1); // Assuming word occurrence is binary
-				}
-			}
-
-			// Create a new Instances object containing only the instance to be tested
-			Instances singleInstanceDataSet = new Instances(dataSet, 0);
-			singleInstanceDataSet.add(instance);
-
-			// Preprocess the single instance using the same filter as the training data
-			StringToWordVector instanceFilter = new StringToWordVector();
-			instanceFilter.setInputFormat(singleInstanceDataSet);
-			Instances preprocessedSingleInstanceDataSet = Filter.useFilter(singleInstanceDataSet, instanceFilter);
-
-			// Get the preprocessed instance
-			Instance preprocessedInstance = preprocessedSingleInstanceDataSet.get(0);
+			// Process the instance
+			Instance preprocessedInstance = preprocessInstance(textMessage);
 
 			// Classify instance
 			double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
@@ -145,6 +119,52 @@ public class SpamClassifier {
 		} catch (Exception e) {
 			throw new Exception("Error occurred during testing.", e);
 		}
+	}
+
+	/**
+	 * Preprocesses a single instance (text message) using the same filter as the training data.
+	 *
+	 * @param textMessage The text message to preprocess.
+	 * @return The preprocessed instance.
+	 * @throws Exception If an error occurs during preprocessing.
+	 */
+	private Instance preprocessInstance(String textMessage) throws Exception {
+		// Create a new instance
+		Instance instance = new DenseInstance(dataSet.numAttributes());
+		instance.setDataset(dataSet);
+
+		// Split the given text message into words
+		String[] words = textMessage.split("\\s+");
+
+		// Set attributes for the new instance based on the example text message
+		for (String word : words) {
+			// Find the index of the attribute corresponding to the word
+			Attribute attribute = null;
+			for (int i = 0; i < dataSet.numAttributes(); i++) {
+				if (dataSet.attribute(i).name().equalsIgnoreCase(word)) {
+					attribute = dataSet.attribute(i);
+					break;
+				}
+			}
+			// Skip any unknown words
+			if (attribute != null) {
+				int attributeIndex = attribute.index();
+				// Set the value for the attribute
+				instance.setValue(attributeIndex, 1); // Assuming word occurrence is binary
+			}
+		}
+
+		// Create a new Instances object containing only the instance to be tested
+		Instances singleInstanceDataSet = new Instances(dataSet, 0);
+		singleInstanceDataSet.add(instance);
+
+		// Preprocess the single instance using the same filter as the training data
+		StringToWordVector instanceFilter = new StringToWordVector();
+		instanceFilter.setInputFormat(singleInstanceDataSet);
+		Instances preprocessedSingleInstanceDataSet = Filter.useFilter(singleInstanceDataSet, instanceFilter);
+
+		// Get the preprocessed instance
+		return preprocessedSingleInstanceDataSet.get(0);
 	}
 
 }
