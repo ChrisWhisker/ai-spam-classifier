@@ -38,6 +38,9 @@ public class SpamClassifier {
 		naiveBayesClassifier = new NaiveBayes();
 		naiveBayesClassifier.buildClassifier(dataProcessed);
 
+		// Store preprocessed data for testing
+		dataSet = dataProcessed;
+
 		evaluateClassifier();
 	}
 
@@ -76,12 +79,12 @@ public class SpamClassifier {
 		StringToNominal stringToNominalFilter = new StringToNominal();
 		stringToNominalFilter.setAttributeRange("last");
 		stringToNominalFilter.setInputFormat(dataWithNominalAttributes);
-		dataSet = Filter.useFilter(dataWithNominalAttributes, stringToNominalFilter);
+		Instances preprocessedData = Filter.useFilter(dataWithNominalAttributes, stringToNominalFilter);
 
 		// Set class index to the newly converted nominal attribute
-		dataSet.setClassIndex(dataSet.numAttributes() - 1);
+		preprocessedData.setClassIndex(preprocessedData.numAttributes() - 1);
 
-		return dataSet;
+		return preprocessedData;
 	}
 
 	/**
@@ -109,13 +112,6 @@ public class SpamClassifier {
 		System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
 	}
 
-	/**
-	 * Preprocesses a single instance (text message) using the same filter as the training data.
-	 *
-	 * @param textMessage The text message to preprocess.
-	 * @return The preprocessed instance.
-	 * @throws Exception If an error occurs during preprocessing.
-	 */
 	private Instance preprocessInstance(String textMessage) throws Exception {
 		if (dataSet == null) {
 			throw new IllegalStateException("Dataset is not initialized.");
@@ -130,8 +126,9 @@ public class SpamClassifier {
 
 		// Set attributes for the new instance based on the example text message
 		for (String word : words) {
-			Attribute attribute = dataSet.attribute(word);
-			if (attribute != null) {
+			// Check if the word exists as an attribute in the dataset
+			if (dataSet.attribute(word) != null) {
+				Attribute attribute = dataSet.attribute(word);
 				int attributeIndex = attribute.index();
 				instance.setValue(attributeIndex, 1);
 			}
@@ -143,10 +140,26 @@ public class SpamClassifier {
 
 		// Preprocess the single instance using the same filter as the training data
 		StringToWordVector instanceFilter = new StringToWordVector();
-		instanceFilter.setInputFormat(singleInstanceDataSet);
+		instanceFilter.setInputFormat(dataSet);
 		Instances preprocessedSingleInstanceDataSet = Filter.useFilter(singleInstanceDataSet, instanceFilter);
 
-		// Get the preprocessed instance
-		return preprocessedSingleInstanceDataSet.get(0);
+		// Check if preprocessedSingleInstanceDataSet is not empty
+		if (preprocessedSingleInstanceDataSet.numInstances() > 0) {
+			// Access the first instance
+			Instance preprocessedInstance = preprocessedSingleInstanceDataSet.firstInstance();
+			// Copy attribute values from the preprocessed instance to the new instance
+			for (int i = 0; i < instance.numAttributes(); i++) {
+				if (!instance.isMissing(i)) {
+					preprocessedInstance.setValue(i, instance.value(i));
+				}
+			}
+			return preprocessedInstance;
+		} else {
+			throw new Exception("Preprocessed instance dataset is empty.");
+		}
 	}
+
+
+
+
 }
