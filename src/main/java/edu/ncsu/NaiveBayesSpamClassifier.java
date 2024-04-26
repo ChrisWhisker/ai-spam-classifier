@@ -75,9 +75,10 @@ public class NaiveBayesSpamClassifier {
 		}
 	}
 
-
 	public void testModel(String textMessage) {
 		try {
+			System.out.println("Predicting class for message: \"" + textMessage + "\"");
+
 			// Create a new instance
 			Instance instance = new DenseInstance(nominalDataInstances.numAttributes());
 			instance.setDataset(nominalDataInstances);
@@ -109,9 +110,14 @@ public class NaiveBayesSpamClassifier {
 			Instance preprocessedInstance = preprocessedSingleInstanceDataset.get(0);
 
 			// Classify instance
+			double[] predictionDistribution = naiveBayes.distributionForInstance(preprocessedInstance);
 			double pred = naiveBayes.classifyInstance(preprocessedInstance);
 			String prediction = nominalDataInstances.classAttribute().value((int) pred);
 			System.out.println("Predicted class: " + (Objects.equals(prediction, "1") ? "spam" : "ham"));
+
+			// Print confidence level for each class
+			System.out.println("Confidence level for spam: " + String.format("%.2f", predictionDistribution[1] * 100) + "%");
+			System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
