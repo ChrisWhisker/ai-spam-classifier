@@ -20,7 +20,13 @@ public class SpamClassifier {
 	private Instances dataSet;
 	private NaiveBayes naiveBayesClassifier;
 
-	public void trainClassifier(String dataFilePath) {
+	/**
+	 * Trains the spam classifier using the specified data file.
+	 *
+	 * @param dataFilePath The file path of the dataset to train the classifier.
+	 * @throws Exception If an error occurs during training.
+	 */
+	public void trainClassifier(String dataFilePath) throws Exception {
 		try {
 			// Load dataset
 			DataSource source = new DataSource(dataFilePath);
@@ -60,22 +66,33 @@ public class SpamClassifier {
 			System.out.println(evaluation.toSummaryString());
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new Exception("Error occurred during training.", e);
 		}
 	}
 
-	public void evaluateClassifier() {
+	/**
+	 * Evaluates the trained spam classifier.
+	 *
+	 * @throws Exception If an error occurs during evaluation.
+	 */
+	public void evaluateClassifier() throws Exception {
 		try {
 			// Evaluate classifier
 			Evaluation evaluation = new Evaluation(dataSet);
 			evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1)); // 10-fold cross-validation
 			System.out.println(evaluation.toSummaryString());
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new Exception("Error occurred during evaluation.", e);
 		}
 	}
 
-	public void testModel(String textMessage) {
+	/**
+	 * Tests the trained spam classifier with a given text message.
+	 *
+	 * @param textMessage The text message to classify.
+	 * @throws Exception If an error occurs during classification.
+	 */
+	public void testModel(String textMessage) throws Exception {
 		try {
 			System.out.println("Predicting class for message: \"" + textMessage + "\"");
 
@@ -96,12 +113,11 @@ public class SpamClassifier {
 						break;
 					}
 				}
+				// Skip any unknown words
 				if (attribute != null) {
 					int attributeIndex = attribute.index();
 					// Set the value for the attribute
 					instance.setValue(attributeIndex, 1); // Assuming word occurrence is binary
-				} else {
-					System.out.println("Skipping unknown word: " + word);
 				}
 			}
 
@@ -127,7 +143,8 @@ public class SpamClassifier {
 			System.out.println("Confidence level for spam: " + String.format("%.2f", predictionDistribution[1] * 100) + "%");
 			System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new Exception("Error occurred during testing.", e);
 		}
 	}
+
 }

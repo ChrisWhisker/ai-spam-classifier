@@ -1,7 +1,7 @@
 package edu.ncsu;
 
 public class Main {
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		SpamClassifier classifier = new SpamClassifier();
 		classifier.trainClassifier("SMSSpamCollection.arff");
 		classifier.evaluateClassifier();
