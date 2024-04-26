@@ -17,8 +17,8 @@ import java.util.Random;
 
 public class NaiveBayesSpamClassifier {
 
-	private Instances newDataWithNominalClass;
-	private NaiveBayes nb;
+	private Instances nominalDataInstances;
+	private NaiveBayes naiveBayes;
 
 	public void trainClassifier(String dataFilePath) {
 		try {
@@ -43,20 +43,20 @@ public class NaiveBayesSpamClassifier {
 			StringToNominal filterStringToNominal = new StringToNominal();
 			filterStringToNominal.setAttributeRange("last");
 			filterStringToNominal.setInputFormat(newDataWithNominalAttributes);
-			newDataWithNominalClass = Filter.useFilter(newDataWithNominalAttributes, filterStringToNominal);
+			nominalDataInstances = Filter.useFilter(newDataWithNominalAttributes, filterStringToNominal);
 
 			// Set class index to the newly converted nominal attribute
-			newDataWithNominalClass.setClassIndex(newDataWithNominalClass.numAttributes() - 1);
+			nominalDataInstances.setClassIndex(nominalDataInstances.numAttributes() - 1);
 
 			// Initialize Naive Bayes classifier
-			nb = new NaiveBayes();
+			naiveBayes = new NaiveBayes();
 
 			// Train classifier
-			nb.buildClassifier(newDataWithNominalClass);
+			naiveBayes.buildClassifier(nominalDataInstances);
 
 			// Evaluate classifier
-			Evaluation eval = new Evaluation(newDataWithNominalClass);
-			eval.crossValidateModel(nb, newDataWithNominalClass, 10, new Random(1)); // 10-fold cross-validation
+			Evaluation eval = new Evaluation(nominalDataInstances);
+			eval.crossValidateModel(naiveBayes, nominalDataInstances, 10, new Random(1)); // 10-fold cross-validation
 			System.out.println(eval.toSummaryString());
 
 		} catch (Exception e) {
@@ -67,8 +67,8 @@ public class NaiveBayesSpamClassifier {
 	public void evaluateClassifier() {
 		try {
 			// Evaluate classifier
-			Evaluation eval = new Evaluation(newDataWithNominalClass);
-			eval.crossValidateModel(nb, newDataWithNominalClass, 10, new Random(1)); // 10-fold cross-validation
+			Evaluation eval = new Evaluation(nominalDataInstances);
+			eval.crossValidateModel(naiveBayes, nominalDataInstances, 10, new Random(1)); // 10-fold cross-validation
 			System.out.println(eval.toSummaryString());
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -76,12 +76,11 @@ public class NaiveBayesSpamClassifier {
 	}
 
 
-	public int testModel(String textMessage) {
+	public void testModel(String textMessage) {
 		try {
-
 			// Create a new instance
-			Instance instance = new DenseInstance(newDataWithNominalClass.numAttributes());
-			instance.setDataset(newDataWithNominalClass);
+			Instance instance = new DenseInstance(nominalDataInstances.numAttributes());
+			instance.setDataset(nominalDataInstances);
 
 			// Split the given text message into words
 			String[] words = textMessage.split("\\s+");
@@ -89,7 +88,7 @@ public class NaiveBayesSpamClassifier {
 			// Set attributes for the new instance based on the example text message
 			for (String word : words) {
 				// Find the index of the attribute corresponding to the word
-				Attribute attribute = newDataWithNominalClass.attribute(word.toLowerCase());
+				Attribute attribute = nominalDataInstances.attribute(word.toLowerCase());
 				if (attribute != null) {
 					int attributeIndex = attribute.index();
 					// Set the value for the attribute
@@ -98,7 +97,7 @@ public class NaiveBayesSpamClassifier {
 			}
 
 			// Create a new Instances object containing only the instance to be tested
-			Instances singleInstanceDataset = new Instances(newDataWithNominalClass, 0);
+			Instances singleInstanceDataset = new Instances(nominalDataInstances, 0);
 			singleInstanceDataset.add(instance);
 
 			// Preprocess the single instance using the same filter as the training data
@@ -110,14 +109,11 @@ public class NaiveBayesSpamClassifier {
 			Instance preprocessedInstance = preprocessedSingleInstanceDataset.get(0);
 
 			// Classify instance
-			double pred = nb.classifyInstance(preprocessedInstance);
-			String prediction = newDataWithNominalClass.classAttribute().value((int) pred);
+			double pred = naiveBayes.classifyInstance(preprocessedInstance);
+			String prediction = nominalDataInstances.classAttribute().value((int) pred);
 			System.out.println("Predicted class: " + (Objects.equals(prediction, "1") ? "spam" : "ham"));
-
-			return Integer.parseInt(prediction);
 		} catch (Exception e) {
 			e.printStackTrace();
-			return 0;
 		}
 	}
 }
