@@ -109,6 +109,13 @@ public class SpamClassifier {
 		System.out.println("Predicted class: " + (prediction.equals("1") ? "spam" : "ham"));
 	}
 
+	/**
+	 * Preprocesses a single text message instance before classification.
+	 *
+	 * @param textMessage The text message to preprocess.
+	 * @param instance The instance to be preprocessed.
+	 * @throws Exception If an error occurs during preprocessing.
+	 */
 	private void preprocessInstance(String textMessage, Instance instance) throws Exception {
 		if (dataSet == null) {
 			throw new IllegalStateException("Dataset is not initialized.");
