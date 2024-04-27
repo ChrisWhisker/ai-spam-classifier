@@ -16,6 +16,7 @@ import java.util.Random;
 
 public class SpamClassifier {
 
+	private static final int FOLDS_FOR_EVALUATION = 10;
 	// Dataset used for training and testing
 	private Instances dataSet;
 	private NaiveBayes naiveBayesClassifier;
@@ -29,17 +30,14 @@ public class SpamClassifier {
 	public void train(String dataFilePath) throws Exception {
 		// Load dataset
 		DataSource source = new DataSource(dataFilePath);
-		Instances rawData = source.getDataSet();
-		rawData.setClassIndex(rawData.numAttributes() - 1);
+		dataSet = source.getDataSet();
+		dataSet.setClassIndex(dataSet.numAttributes() - 1);
 
-		Instances dataProcessed = preprocessData(rawData);
+		preprocessData();
 
 		// Initialize and train Naive Bayes classifier
 		naiveBayesClassifier = new NaiveBayes();
-		naiveBayesClassifier.buildClassifier(dataProcessed);
-
-		// Store preprocessed data for testing
-		dataSet = dataProcessed;
+		naiveBayesClassifier.buildClassifier(dataSet);
 
 		evaluate();
 	}
@@ -51,8 +49,7 @@ public class SpamClassifier {
 	 */
 	private void evaluate() throws Exception {
 		Evaluation evaluation = new Evaluation(dataSet);
-		// 10-fold cross-validation
-		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1));
+		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, FOLDS_FOR_EVALUATION, new Random(1));
 		System.out.println(evaluation.toSummaryString());
 	}
 
@@ -60,15 +57,13 @@ public class SpamClassifier {
 	 * Preprocesses the data by converting string attributes to word vectors
 	 * and numeric attributes to nominal.
 	 *
-	 * @param data The dataset to preprocess.
-	 * @return The preprocessed dataset.
 	 * @throws Exception If an error occurs during preprocessing.
 	 */
-	private Instances preprocessData(Instances data) throws Exception {
+	private void preprocessData() throws Exception {
 		// Convert string attribute to word vectors
 		StringToWordVector stringToWordVectorFilter = new StringToWordVector();
-		stringToWordVectorFilter.setInputFormat(data);
-		Instances dataWithWordVectors = Filter.useFilter(data, stringToWordVectorFilter);
+		stringToWordVectorFilter.setInputFormat(dataSet);
+		Instances dataWithWordVectors = Filter.useFilter(dataSet, stringToWordVectorFilter);
 
 		// Convert numeric attributes to nominal
 		NumericToNominal numericToNominalFilter = new NumericToNominal();
@@ -84,7 +79,7 @@ public class SpamClassifier {
 		// Set class index to the newly converted nominal attribute
 		preprocessedData.setClassIndex(preprocessedData.numAttributes() - 1);
 
-		return preprocessedData;
+		dataSet = preprocessedData;
 	}
 
 	/**
@@ -99,11 +94,11 @@ public class SpamClassifier {
 		// Create a new instance and process it
 		Instance instance = new DenseInstance(dataSet.numAttributes());
 		instance.setDataset(dataSet);
-		Instance preprocessedInstance = preprocessInstance(textMessage);
+		preprocessInstance(textMessage, instance);
 
 		// Classify instance
-		double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
-		double pred = naiveBayesClassifier.classifyInstance(preprocessedInstance);
+		double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(instance);
+		double pred = naiveBayesClassifier.classifyInstance(instance);
 		String prediction = dataSet.classAttribute().value((int) pred);
 
 		// Print confidence level for each class
@@ -114,14 +109,10 @@ public class SpamClassifier {
 		System.out.println("Predicted class: " + (prediction.equals("1") ? "spam" : "ham"));
 	}
 
-	private Instance preprocessInstance(String textMessage) throws Exception {
+	private void preprocessInstance(String textMessage, Instance instance) throws Exception {
 		if (dataSet == null) {
 			throw new IllegalStateException("Dataset is not initialized.");
 		}
-
-		// Create a new instance
-		Instance instance = new DenseInstance(dataSet.numAttributes());
-		instance.setDataset(dataSet);
 
 		// Split the given text message into words
 		String[] words = textMessage.split("\\s+");
@@ -148,20 +139,16 @@ public class SpamClassifier {
 		// Check if preprocessedSingleInstanceDataSet is not empty
 		if (preprocessedSingleInstanceDataSet.numInstances() > 0) {
 			// Access the first instance
-			Instance preprocessedInstance = preprocessedSingleInstanceDataSet.firstInstance();
+			instance = preprocessedSingleInstanceDataSet.firstInstance();
 			// Copy attribute values from the preprocessed instance to the new instance
 			for (int i = 0; i < instance.numAttributes(); i++) {
 				if (!instance.isMissing(i)) {
-					preprocessedInstance.setValue(i, instance.value(i));
+					instance.setValue(i, instance.value(i));
 				}
 			}
-			return preprocessedInstance;
 		} else {
 			throw new Exception("Preprocessed instance dataset is empty.");
 		}
 	}
-
-
-
 
 }
