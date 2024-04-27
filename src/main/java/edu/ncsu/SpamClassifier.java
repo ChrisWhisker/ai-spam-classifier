@@ -26,7 +26,7 @@ public class SpamClassifier {
 	 * @param dataFilePath The file path of the dataset to train the classifier.
 	 * @throws Exception If an error occurs during training.
 	 */
-	public void trainClassifier(String dataFilePath) throws Exception {
+	public void train(String dataFilePath) throws Exception {
 		// Load dataset
 		DataSource source = new DataSource(dataFilePath);
 		Instances rawData = source.getDataSet();
@@ -41,7 +41,7 @@ public class SpamClassifier {
 		// Store preprocessed data for testing
 		dataSet = dataProcessed;
 
-		evaluateClassifier();
+		evaluate();
 	}
 
 	/**
@@ -49,7 +49,7 @@ public class SpamClassifier {
 	 *
 	 * @throws Exception If an error occurs during evaluation.
 	 */
-	private void evaluateClassifier() throws Exception {
+	private void evaluate() throws Exception {
 		Evaluation evaluation = new Evaluation(dataSet);
 		// 10-fold cross-validation
 		evaluation.crossValidateModel(naiveBayesClassifier, dataSet, 10, new Random(1));
@@ -93,7 +93,7 @@ public class SpamClassifier {
 	 * @param textMessage The text message to classify.
 	 * @throws Exception If an error occurs during classification.
 	 */
-	public void testModel(String textMessage) throws Exception {
+	public void test(String textMessage) throws Exception {
 		System.out.println("Predicting class for message: \"" + textMessage + "\"");
 
 		// Create a new instance and process it
@@ -105,11 +105,13 @@ public class SpamClassifier {
 		double[] predictionDistribution = naiveBayesClassifier.distributionForInstance(preprocessedInstance);
 		double pred = naiveBayesClassifier.classifyInstance(preprocessedInstance);
 		String prediction = dataSet.classAttribute().value((int) pred);
-		System.out.println("Predicted class: " + (prediction.equals("1") ? "spam" : "ham"));
 
 		// Print confidence level for each class
 		System.out.println("Confidence level for spam: " + String.format("%.2f", predictionDistribution[1] * 100) + "%");
 		System.out.println("Confidence level for ham: " + String.format("%.2f", predictionDistribution[0] * 100) + "%");
+
+		// Print prediction
+		System.out.println("Predicted class: " + (prediction.equals("1") ? "spam" : "ham"));
 	}
 
 	private Instance preprocessInstance(String textMessage) throws Exception {
