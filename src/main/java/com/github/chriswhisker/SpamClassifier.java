@@ -1,4 +1,4 @@
-package edu.ncsu;
+package com.github.chriswhisker;
 
 import weka.classifiers.Evaluation;
 import weka.classifiers.bayes.NaiveBayes;
